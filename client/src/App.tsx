@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import Dashboard from "@/pages/dashboard";
 import Security from "@/pages/security";
+import Passwords from "@/pages/passwords";
 import NotFound from "@/pages/not-found";
 
 function Router() {

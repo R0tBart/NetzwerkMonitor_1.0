@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertDeviceSchema, insertBandwidthMetricSchema, insertSystemMetricSchema, insertSecurityEventSchema, insertIdsRuleSchema } from "@shared/schema";
+import { insertDeviceSchema, insertBandwidthMetricSchema, insertSystemMetricSchema, insertSecurityEventSchema, insertIdsRuleSchema, insertPasswordVaultSchema, insertPasswordEntrySchema } from "@shared/schema";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -337,6 +337,93 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ message: "Failed to delete IDS rule" });
+    }
+  });
+
+  // Password Manager routes
+  app.get("/api/password-vaults", async (req, res) => {
+    try {
+      const vaults = await storage.getPasswordVaults();
+      res.json(vaults);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch password vaults" });
+    }
+  });
+
+  app.post("/api/password-vaults", async (req, res) => {
+    try {
+      const vaultData = insertPasswordVaultSchema.parse(req.body);
+      const vault = await storage.createPasswordVault(vaultData);
+      res.status(201).json(vault);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid vault data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create password vault" });
+    }
+  });
+
+  app.get("/api/password-entries", async (req, res) => {
+    try {
+      const vaultId = req.query.vaultId ? parseInt(req.query.vaultId as string) : undefined;
+      const entries = await storage.getPasswordEntries(vaultId);
+      res.json(entries);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch password entries" });
+    }
+  });
+
+  app.post("/api/password-entries", async (req, res) => {
+    try {
+      const entryData = insertPasswordEntrySchema.parse(req.body);
+      const entry = await storage.createPasswordEntry(entryData);
+      res.status(201).json(entry);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid entry data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create password entry" });
+    }
+  });
+
+  app.put("/api/password-entries/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid entry ID" });
+      }
+      
+      const updateData = insertPasswordEntrySchema.partial().parse(req.body);
+      const entry = await storage.updatePasswordEntry(id, updateData);
+      
+      if (!entry) {
+        return res.status(404).json({ message: "Password entry not found" });
+      }
+      
+      res.json(entry);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid entry data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update password entry" });
+    }
+  });
+
+  app.delete("/api/password-entries/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid entry ID" });
+      }
+      
+      const deleted = await storage.deletePasswordEntry(id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Password entry not found" });
+      }
+      
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete password entry" });
     }
   });
 
