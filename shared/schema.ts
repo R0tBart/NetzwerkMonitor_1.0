@@ -55,6 +55,31 @@ export const idsRules = pgTable("ids_rules", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
+// Password Manager Tables
+export const passwordVaults = pgTable("password_vaults", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const passwordEntries = pgTable("password_entries", {
+  id: serial("id").primaryKey(),
+  vaultId: integer("vault_id").references(() => passwordVaults.id, { onDelete: "cascade" }).notNull(),
+  title: text("title").notNull(),
+  username: text("username"),
+  email: text("email"),
+  encryptedPassword: text("encrypted_password").notNull(),
+  website: text("website"),
+  notes: text("notes"),
+  category: text("category"),
+  isFavorite: boolean("is_favorite").notNull().default(false),
+  lastUsed: timestamp("last_used"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 export const insertDeviceSchema = createInsertSchema(devices).pick({
   name: true,
   type: true,
@@ -97,6 +122,23 @@ export const insertIdsRuleSchema = createInsertSchema(idsRules).pick({
   enabled: true,
 });
 
+export const insertPasswordVaultSchema = createInsertSchema(passwordVaults).pick({
+  name: true,
+  description: true,
+});
+
+export const insertPasswordEntrySchema = createInsertSchema(passwordEntries).pick({
+  vaultId: true,
+  title: true,
+  username: true,
+  email: true,
+  encryptedPassword: true,
+  website: true,
+  notes: true,
+  category: true,
+  isFavorite: true,
+});
+
 export type InsertDevice = z.infer<typeof insertDeviceSchema>;
 export type Device = typeof devices.$inferSelect;
 export type InsertBandwidthMetric = z.infer<typeof insertBandwidthMetricSchema>;
@@ -107,3 +149,7 @@ export type InsertSecurityEvent = z.infer<typeof insertSecurityEventSchema>;
 export type SecurityEvent = typeof securityEvents.$inferSelect;
 export type InsertIdsRule = z.infer<typeof insertIdsRuleSchema>;
 export type IdsRule = typeof idsRules.$inferSelect;
+export type InsertPasswordVault = z.infer<typeof insertPasswordVaultSchema>;
+export type PasswordVault = typeof passwordVaults.$inferSelect;
+export type InsertPasswordEntry = z.infer<typeof insertPasswordEntrySchema>;
+export type PasswordEntry = typeof passwordEntries.$inferSelect;

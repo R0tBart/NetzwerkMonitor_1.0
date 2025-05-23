@@ -1,4 +1,4 @@
-import { devices, bandwidthMetrics, systemMetrics, securityEvents, idsRules, type Device, type InsertDevice, type BandwidthMetric, type InsertBandwidthMetric, type SystemMetric, type InsertSystemMetric, type SecurityEvent, type InsertSecurityEvent, type IdsRule, type InsertIdsRule } from "@shared/schema";
+import { devices, bandwidthMetrics, systemMetrics, securityEvents, idsRules, passwordVaults, passwordEntries, type Device, type InsertDevice, type BandwidthMetric, type InsertBandwidthMetric, type SystemMetric, type InsertSystemMetric, type SecurityEvent, type InsertSecurityEvent, type IdsRule, type InsertIdsRule, type PasswordVault, type InsertPasswordVault, type PasswordEntry, type InsertPasswordEntry } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc } from "drizzle-orm";
 
@@ -32,6 +32,19 @@ export interface IStorage {
   createIdsRule(rule: InsertIdsRule): Promise<IdsRule>;
   updateIdsRule(id: number, rule: Partial<InsertIdsRule>): Promise<IdsRule | undefined>;
   deleteIdsRule(id: number): Promise<boolean>;
+  
+  // Password Manager operations
+  getPasswordVaults(): Promise<PasswordVault[]>;
+  getPasswordVault(id: number): Promise<PasswordVault | undefined>;
+  createPasswordVault(vault: InsertPasswordVault): Promise<PasswordVault>;
+  updatePasswordVault(id: number, vault: Partial<InsertPasswordVault>): Promise<PasswordVault | undefined>;
+  deletePasswordVault(id: number): Promise<boolean>;
+  
+  getPasswordEntries(vaultId?: number): Promise<PasswordEntry[]>;
+  getPasswordEntry(id: number): Promise<PasswordEntry | undefined>;
+  createPasswordEntry(entry: InsertPasswordEntry): Promise<PasswordEntry>;
+  updatePasswordEntry(id: number, entry: Partial<InsertPasswordEntry>): Promise<PasswordEntry | undefined>;
+  deletePasswordEntry(id: number): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -530,6 +543,50 @@ export class DatabaseStorage implements IStorage {
 
     await db.insert(securityEvents).values(sampleSecurityEvents);
 
+    // Add default password vault
+    const [defaultVault] = await db.insert(passwordVaults).values({
+      name: "Standard Vault",
+      description: "Haupttresor für Netzwerk-Passwörter und Zugangsdaten",
+    }).returning();
+
+    // Add sample password entries (encrypted with a simple method for demo)
+    const samplePasswordEntries = [
+      {
+        vaultId: defaultVault.id,
+        title: "Router Admin",
+        username: "admin",
+        email: "admin@company.com",
+        encryptedPassword: "encrypted_admin_password_123",
+        website: "https://192.168.1.1",
+        notes: "Hauptrouter-Administratorzugang",
+        category: "Network Equipment",
+        isFavorite: true,
+      },
+      {
+        vaultId: defaultVault.id,
+        title: "Switch Management",
+        username: "netadmin",
+        email: "network@company.com", 
+        encryptedPassword: "encrypted_switch_password_456",
+        website: "https://192.168.1.10",
+        notes: "Switch-Verwaltungszugang",
+        category: "Network Equipment",
+        isFavorite: false,
+      },
+      {
+        vaultId: defaultVault.id,
+        title: "Firewall Console",
+        username: "fwadmin",
+        encryptedPassword: "encrypted_firewall_password_789",
+        website: "https://192.168.1.5",
+        notes: "Firewall-Konfigurationszugang",
+        category: "Security",
+        isFavorite: true,
+      },
+    ];
+
+    await db.insert(passwordEntries).values(samplePasswordEntries);
+
     this.initialized = true;
   }
 
@@ -679,6 +736,77 @@ export class DatabaseStorage implements IStorage {
 
   async deleteIdsRule(id: number): Promise<boolean> {
     const result = await db.delete(idsRules).where(eq(idsRules.id, id));
+    return (result.rowCount || 0) > 0;
+  }
+
+  // Password Manager operations
+  async getPasswordVaults(): Promise<PasswordVault[]> {
+    await this.initializeData();
+    return await db.select().from(passwordVaults);
+  }
+
+  async getPasswordVault(id: number): Promise<PasswordVault | undefined> {
+    const [vault] = await db.select().from(passwordVaults).where(eq(passwordVaults.id, id));
+    return vault || undefined;
+  }
+
+  async createPasswordVault(insertVault: InsertPasswordVault): Promise<PasswordVault> {
+    const [vault] = await db
+      .insert(passwordVaults)
+      .values(insertVault)
+      .returning();
+    return vault;
+  }
+
+  async updatePasswordVault(id: number, updates: Partial<InsertPasswordVault>): Promise<PasswordVault | undefined> {
+    const [vault] = await db
+      .update(passwordVaults)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(passwordVaults.id, id))
+      .returning();
+    return vault || undefined;
+  }
+
+  async deletePasswordVault(id: number): Promise<boolean> {
+    const result = await db.delete(passwordVaults).where(eq(passwordVaults.id, id));
+    return (result.rowCount || 0) > 0;
+  }
+
+  async getPasswordEntries(vaultId?: number): Promise<PasswordEntry[]> {
+    await this.initializeData();
+    let query = db.select().from(passwordEntries);
+    
+    if (vaultId) {
+      query = query.where(eq(passwordEntries.vaultId, vaultId));
+    }
+    
+    return await query.orderBy(desc(passwordEntries.lastUsed));
+  }
+
+  async getPasswordEntry(id: number): Promise<PasswordEntry | undefined> {
+    const [entry] = await db.select().from(passwordEntries).where(eq(passwordEntries.id, id));
+    return entry || undefined;
+  }
+
+  async createPasswordEntry(insertEntry: InsertPasswordEntry): Promise<PasswordEntry> {
+    const [entry] = await db
+      .insert(passwordEntries)
+      .values(insertEntry)
+      .returning();
+    return entry;
+  }
+
+  async updatePasswordEntry(id: number, updates: Partial<InsertPasswordEntry>): Promise<PasswordEntry | undefined> {
+    const [entry] = await db
+      .update(passwordEntries)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(passwordEntries.id, id))
+      .returning();
+    return entry || undefined;
+  }
+
+  async deletePasswordEntry(id: number): Promise<boolean> {
+    const result = await db.delete(passwordEntries).where(eq(passwordEntries.id, id));
     return (result.rowCount || 0) > 0;
   }
 }
