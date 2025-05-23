@@ -216,12 +216,17 @@ export default function DeviceTable() {
                       </TableCell>
                       <TableCell className="whitespace-nowrap">
                         <Badge variant="secondary" className={statusClass}>
-                          <div className="w-1.5 h-1.5 rounded-full mr-1" 
-                               style={{
-                                 backgroundColor: device.status === 'online' ? '#10b981' :
-                                                device.status === 'warning' ? '#f59e0b' :
-                                                device.status === 'offline' ? '#ef4444' : '#64748b'
-                               }} />
+                          <div
+                            className={`w-1.5 h-1.5 rounded-full mr-1 ${
+                              device.status === 'online'
+                                ? 'bg-green-500'
+                                : device.status === 'warning'
+                                ? 'bg-amber-500'
+                                : device.status === 'offline'
+                                ? 'bg-red-500'
+                                : 'bg-slate-500'
+                            }`}
+                          />
                           {device.status === 'online' ? 'Online' :
                            device.status === 'warning' ? 'Warnung' :
                            device.status === 'offline' ? 'Offline' : 'Wartung'}
