@@ -1,4 +1,6 @@
 import { devices, bandwidthMetrics, systemMetrics, securityEvents, idsRules, type Device, type InsertDevice, type BandwidthMetric, type InsertBandwidthMetric, type SystemMetric, type InsertSystemMetric, type SecurityEvent, type InsertSecurityEvent, type IdsRule, type InsertIdsRule } from "@shared/schema";
+import { db } from "./db";
+import { eq, desc } from "drizzle-orm";
 
 export interface IStorage {
   // Device operations
@@ -385,4 +387,300 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+export class DatabaseStorage implements IStorage {
+  private initialized = false;
+
+  private async initializeData() {
+    if (this.initialized) return;
+    
+    // Check if we already have data
+    const existingDevices = await db.select().from(devices).limit(1);
+    if (existingDevices.length > 0) {
+      this.initialized = true;
+      return;
+    }
+
+    // Initialize with sample data only if database is empty
+    const sampleDevices = [
+      {
+        name: "Core Router R1",
+        type: "router",
+        ipAddress: "192.168.1.1",
+        status: "online",
+        bandwidth: 450,
+        maxBandwidth: 1000,
+        model: "Cisco ASR 1000",
+        location: "Data Center A",
+      },
+      {
+        name: "Switch SW-01", 
+        type: "switch",
+        ipAddress: "192.168.1.10",
+        status: "online",
+        bandwidth: 320,
+        maxBandwidth: 600,
+        model: "HP ProCurve 2920",
+        location: "Floor 1",
+      },
+      {
+        name: "Access Point AP-01",
+        type: "access_point", 
+        ipAddress: "192.168.1.20",
+        status: "warning",
+        bandwidth: 890,
+        maxBandwidth: 1000,
+        model: "Ubiquiti UniFi",
+        location: "Floor 2",
+      },
+      {
+        name: "Firewall FW-01",
+        type: "firewall",
+        ipAddress: "192.168.1.5", 
+        status: "offline",
+        bandwidth: 0,
+        maxBandwidth: 500,
+        model: "Fortinet FortiGate",
+        location: "DMZ",
+      },
+    ];
+
+    await db.insert(devices).values(sampleDevices);
+
+    // Add initial system metrics
+    await db.insert(systemMetrics).values({
+      activeDevices: 127,
+      totalBandwidth: 2.4,
+      warnings: 3,
+      uptime: 99.9,
+    });
+
+    // Add sample IDS rules
+    const sampleIdsRules = [
+      {
+        name: "SSH Brute Force Detection",
+        description: "Erkennt wiederholte SSH-Anmeldeversuche von derselben IP",
+        pattern: "^.*sshd.*Failed password.*from\\s+(\\d+\\.\\d+\\.\\d+\\.\\d+)",
+        severity: "high",
+        enabled: true,
+      },
+      {
+        name: "Port Scan Detection", 
+        description: "Erkennt verdächtige Port-Scanning-Aktivitäten",
+        pattern: "TCP.*SYN.*multiple_ports",
+        severity: "medium",
+        enabled: true,
+      },
+      {
+        name: "Malware Communication",
+        description: "Erkennt bekannte Malware-Kommunikationsmuster", 
+        pattern: ".*\\.exe.*suspicious_domain\\.com",
+        severity: "critical",
+        enabled: true,
+      },
+      {
+        name: "Unusual Traffic Volume",
+        description: "Erkennt ungewöhnlich hohe Datenübertragung",
+        pattern: "bandwidth_threshold_exceeded",
+        severity: "medium", 
+        enabled: true,
+      },
+    ];
+
+    await db.insert(idsRules).values(sampleIdsRules);
+
+    // Add sample security events
+    const sampleSecurityEvents = [
+      {
+        eventType: "brute_force",
+        severity: "high",
+        sourceIp: "45.123.45.67",
+        targetIp: "192.168.1.1",
+        description: "Mehrfache fehlgeschlagene SSH-Anmeldeversuche erkannt",
+        status: "new",
+        deviceId: 1,
+      },
+      {
+        eventType: "port_scan",
+        severity: "medium", 
+        sourceIp: "178.62.199.34",
+        targetIp: "192.168.1.10",
+        description: "Port-Scan-Aktivität von externer IP erkannt",
+        status: "investigating",
+        deviceId: 2,
+      },
+      {
+        eventType: "unusual_traffic",
+        severity: "medium",
+        sourceIp: "192.168.1.20",
+        targetIp: "203.0.113.5", 
+        description: "Ungewöhnlich hoher ausgehender Datenverkehr",
+        status: "new",
+        deviceId: 3,
+      },
+      {
+        eventType: "intrusion_attempt",
+        severity: "critical",
+        sourceIp: "198.51.100.23",
+        targetIp: "192.168.1.5",
+        description: "Verdächtiger Einbruchsversuch in Firewall erkannt", 
+        status: "resolved",
+        deviceId: 4,
+      },
+    ];
+
+    await db.insert(securityEvents).values(sampleSecurityEvents);
+
+    this.initialized = true;
+  }
+
+  async getDevices(): Promise<Device[]> {
+    await this.initializeData();
+    return await db.select().from(devices);
+  }
+
+  async getDevice(id: number): Promise<Device | undefined> {
+    const [device] = await db.select().from(devices).where(eq(devices.id, id));
+    return device || undefined;
+  }
+
+  async createDevice(insertDevice: InsertDevice): Promise<Device> {
+    const [device] = await db
+      .insert(devices)
+      .values(insertDevice)
+      .returning();
+    return device;
+  }
+
+  async updateDevice(id: number, updates: Partial<InsertDevice>): Promise<Device | undefined> {
+    const [device] = await db
+      .update(devices)
+      .set(updates)
+      .where(eq(devices.id, id))
+      .returning();
+    return device || undefined;
+  }
+
+  async deleteDevice(id: number): Promise<boolean> {
+    const result = await db.delete(devices).where(eq(devices.id, id));
+    return (result.rowCount || 0) > 0;
+  }
+
+  async getBandwidthMetrics(deviceId?: number, limit: number = 50): Promise<BandwidthMetric[]> {
+    let query = db.select().from(bandwidthMetrics);
+    
+    if (deviceId) {
+      query = query.where(eq(bandwidthMetrics.deviceId, deviceId));
+    }
+    
+    return await query
+      .orderBy(desc(bandwidthMetrics.timestamp))
+      .limit(limit);
+  }
+
+  async createBandwidthMetric(insertMetric: InsertBandwidthMetric): Promise<BandwidthMetric> {
+    const [metric] = await db
+      .insert(bandwidthMetrics)
+      .values(insertMetric)
+      .returning();
+    return metric;
+  }
+
+  async getLatestSystemMetrics(): Promise<SystemMetric | undefined> {
+    const [metric] = await db
+      .select()
+      .from(systemMetrics)
+      .orderBy(desc(systemMetrics.timestamp))
+      .limit(1);
+    return metric || undefined;
+  }
+
+  async createSystemMetric(insertMetric: InsertSystemMetric): Promise<SystemMetric> {
+    const [metric] = await db
+      .insert(systemMetrics)
+      .values(insertMetric)
+      .returning();
+    return metric;
+  }
+
+  async getSystemMetricsHistory(limit: number = 24): Promise<SystemMetric[]> {
+    return await db
+      .select()
+      .from(systemMetrics)
+      .orderBy(desc(systemMetrics.timestamp))
+      .limit(limit);
+  }
+
+  // Security events operations (IDS)
+  async getSecurityEvents(limit: number = 50): Promise<SecurityEvent[]> {
+    return await db
+      .select()
+      .from(securityEvents)
+      .orderBy(desc(securityEvents.timestamp))
+      .limit(limit);
+  }
+
+  async getSecurityEventsByStatus(status: string, limit: number = 50): Promise<SecurityEvent[]> {
+    return await db
+      .select()
+      .from(securityEvents)
+      .where(eq(securityEvents.status, status))
+      .orderBy(desc(securityEvents.timestamp))
+      .limit(limit);
+  }
+
+  async createSecurityEvent(insertEvent: InsertSecurityEvent): Promise<SecurityEvent> {
+    const [event] = await db
+      .insert(securityEvents)
+      .values(insertEvent)
+      .returning();
+    return event;
+  }
+
+  async updateSecurityEvent(id: number, updates: Partial<InsertSecurityEvent>): Promise<SecurityEvent | undefined> {
+    const [event] = await db
+      .update(securityEvents)
+      .set(updates)
+      .where(eq(securityEvents.id, id))
+      .returning();
+    return event || undefined;
+  }
+
+  async deleteSecurityEvent(id: number): Promise<boolean> {
+    const result = await db.delete(securityEvents).where(eq(securityEvents.id, id));
+    return (result.rowCount || 0) > 0;
+  }
+
+  // IDS rules operations
+  async getIdsRules(): Promise<IdsRule[]> {
+    return await db.select().from(idsRules);
+  }
+
+  async getIdsRule(id: number): Promise<IdsRule | undefined> {
+    const [rule] = await db.select().from(idsRules).where(eq(idsRules.id, id));
+    return rule || undefined;
+  }
+
+  async createIdsRule(insertRule: InsertIdsRule): Promise<IdsRule> {
+    const [rule] = await db
+      .insert(idsRules)
+      .values(insertRule)
+      .returning();
+    return rule;
+  }
+
+  async updateIdsRule(id: number, updates: Partial<InsertIdsRule>): Promise<IdsRule | undefined> {
+    const [rule] = await db
+      .update(idsRules)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(idsRules.id, id))
+      .returning();
+    return rule || undefined;
+  }
+
+  async deleteIdsRule(id: number): Promise<boolean> {
+    const result = await db.delete(idsRules).where(eq(idsRules.id, id));
+    return (result.rowCount || 0) > 0;
+  }
+}
+
+export const storage = new DatabaseStorage();
