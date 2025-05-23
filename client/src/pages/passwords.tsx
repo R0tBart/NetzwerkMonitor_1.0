@@ -346,9 +346,19 @@ export default function Passwords() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Passwort *</FormLabel>
-                        <FormControl>
-                          <Input type="password" placeholder="Sicheres Passwort" {...field} />
-                        </FormControl>
+                        <div className="flex gap-2">
+                          <FormControl>
+                            <Input type="password" placeholder="Sicheres Passwort" {...field} />
+                          </FormControl>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={handleGeneratePassword}
+                            className="px-3"
+                          >
+                            Generieren
+                          </Button>
+                        </div>
                         <FormMessage />
                       </FormItem>
                     )}
