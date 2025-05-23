@@ -73,7 +73,6 @@ Dieses Projekt steht unter der **MIT-Lizenz** – siehe [LICENSE](./LICENSE) fü
 
 - Nutze Umgebungsvariablen für Konfigurationen (z. B. `.env`)
 - Füge Logging mit Winston oder pino hinzu
-- Denke über eine Integration von MongoDB oder PostgreSQL nach
 - CI/CD mit GitHub Actions einrichten
 
 ---
