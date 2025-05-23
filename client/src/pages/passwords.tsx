@@ -124,10 +124,16 @@ export default function Passwords() {
   });
 
   const onSubmitEntry = (data: FormData) => {
+    // Stelle sicher, dass vaultId gesetzt ist
+    const entryData = {
+      ...data,
+      vaultId: selectedVault || (vaults[0]?.id) || 1
+    };
+    
     if (editingEntry) {
-      updateEntryMutation.mutate({ id: editingEntry.id, data });
+      updateEntryMutation.mutate({ id: editingEntry.id, data: entryData });
     } else {
-      createEntryMutation.mutate(data);
+      createEntryMutation.mutate(entryData);
     }
   };
 
@@ -271,6 +277,14 @@ export default function Passwords() {
               </DialogHeader>
               <Form {...entryForm}>
                 <form onSubmit={entryForm.handleSubmit(onSubmitEntry)} className="space-y-4">
+                  {/* Hidden vaultId field */}
+                  <FormField
+                    control={entryForm.control}
+                    name="vaultId"
+                    render={({ field }) => (
+                      <input type="hidden" {...field} value={selectedVault || vaults[0]?.id || 1} />
+                    )}
+                  />
                   <div className="grid grid-cols-2 gap-4">
                     <FormField
                       control={entryForm.control}
