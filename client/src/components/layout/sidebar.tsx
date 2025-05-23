@@ -7,11 +7,13 @@ import {
   Bell, 
   Settings, 
   Network,
-  User 
+  User,
+  Shield
 } from "lucide-react";
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
+  { name: "Sicherheit", href: "/security", icon: Shield },
   { name: "Geräte", href: "/devices", icon: Server },
   { name: "Analysen", href: "/analytics", icon: TrendingUp },
   { name: "Alerts", href: "/alerts", icon: Bell },
