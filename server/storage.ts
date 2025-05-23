@@ -1,4 +1,4 @@
-import { devices, bandwidthMetrics, systemMetrics, type Device, type InsertDevice, type BandwidthMetric, type InsertBandwidthMetric, type SystemMetric, type InsertSystemMetric } from "@shared/schema";
+import { devices, bandwidthMetrics, systemMetrics, securityEvents, idsRules, type Device, type InsertDevice, type BandwidthMetric, type InsertBandwidthMetric, type SystemMetric, type InsertSystemMetric, type SecurityEvent, type InsertSecurityEvent, type IdsRule, type InsertIdsRule } from "@shared/schema";
 
 export interface IStorage {
   // Device operations
@@ -16,23 +16,45 @@ export interface IStorage {
   getLatestSystemMetrics(): Promise<SystemMetric | undefined>;
   createSystemMetric(metric: InsertSystemMetric): Promise<SystemMetric>;
   getSystemMetricsHistory(limit?: number): Promise<SystemMetric[]>;
+  
+  // Security events operations (IDS)
+  getSecurityEvents(limit?: number): Promise<SecurityEvent[]>;
+  getSecurityEventsByStatus(status: string, limit?: number): Promise<SecurityEvent[]>;
+  createSecurityEvent(event: InsertSecurityEvent): Promise<SecurityEvent>;
+  updateSecurityEvent(id: number, event: Partial<InsertSecurityEvent>): Promise<SecurityEvent | undefined>;
+  deleteSecurityEvent(id: number): Promise<boolean>;
+  
+  // IDS rules operations
+  getIdsRules(): Promise<IdsRule[]>;
+  getIdsRule(id: number): Promise<IdsRule | undefined>;
+  createIdsRule(rule: InsertIdsRule): Promise<IdsRule>;
+  updateIdsRule(id: number, rule: Partial<InsertIdsRule>): Promise<IdsRule | undefined>;
+  deleteIdsRule(id: number): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
   private devices: Map<number, Device>;
   private bandwidthMetrics: Map<number, BandwidthMetric>;
   private systemMetrics: Map<number, SystemMetric>;
+  private securityEvents: Map<number, SecurityEvent>;
+  private idsRules: Map<number, IdsRule>;
   private currentDeviceId: number;
   private currentBandwidthMetricId: number;
   private currentSystemMetricId: number;
+  private currentSecurityEventId: number;
+  private currentIdsRuleId: number;
 
   constructor() {
     this.devices = new Map();
     this.bandwidthMetrics = new Map();
     this.systemMetrics = new Map();
+    this.securityEvents = new Map();
+    this.idsRules = new Map();
     this.currentDeviceId = 1;
     this.currentBandwidthMetricId = 1;
     this.currentSystemMetricId = 1;
+    this.currentSecurityEventId = 1;
+    this.currentIdsRuleId = 1;
     
     // Initialize with sample data
     this.initializeSampleData();
@@ -107,6 +129,99 @@ export class MemStorage implements IStorage {
       timestamp: new Date(),
     };
     this.systemMetrics.set(systemMetric.id, systemMetric);
+
+    // Initialize sample IDS rules
+    const sampleIdsRules: InsertIdsRule[] = [
+      {
+        name: "SSH Brute Force Detection",
+        description: "Erkennt wiederholte SSH-Anmeldeversuche von derselben IP",
+        pattern: "^.*sshd.*Failed password.*from\\s+(\\d+\\.\\d+\\.\\d+\\.\\d+)",
+        severity: "high",
+        enabled: true,
+      },
+      {
+        name: "Port Scan Detection",
+        description: "Erkennt verdächtige Port-Scanning-Aktivitäten",
+        pattern: "TCP.*SYN.*multiple_ports",
+        severity: "medium",
+        enabled: true,
+      },
+      {
+        name: "Malware Communication",
+        description: "Erkennt bekannte Malware-Kommunikationsmuster",
+        pattern: ".*\\.exe.*suspicious_domain\\.com",
+        severity: "critical",
+        enabled: true,
+      },
+      {
+        name: "Unusual Traffic Volume",
+        description: "Erkennt ungewöhnlich hohe Datenübertragung",
+        pattern: "bandwidth_threshold_exceeded",
+        severity: "medium",
+        enabled: true,
+      },
+    ];
+
+    sampleIdsRules.forEach(rule => {
+      const id = this.currentIdsRuleId++;
+      const fullRule: IdsRule = {
+        ...rule,
+        id,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      this.idsRules.set(id, fullRule);
+    });
+
+    // Initialize sample security events
+    const sampleSecurityEvents: InsertSecurityEvent[] = [
+      {
+        eventType: "brute_force",
+        severity: "high",
+        sourceIp: "45.123.45.67",
+        targetIp: "192.168.1.1",
+        description: "Mehrfache fehlgeschlagene SSH-Anmeldeversuche erkannt",
+        status: "new",
+        deviceId: 1,
+      },
+      {
+        eventType: "port_scan",
+        severity: "medium",
+        sourceIp: "178.62.199.34",
+        targetIp: "192.168.1.10",
+        description: "Port-Scan-Aktivität von externer IP erkannt",
+        status: "investigating",
+        deviceId: 2,
+      },
+      {
+        eventType: "unusual_traffic",
+        severity: "medium",
+        sourceIp: "192.168.1.20",
+        targetIp: "203.0.113.5",
+        description: "Ungewöhnlich hoher ausgehender Datenverkehr",
+        status: "new",
+        deviceId: 3,
+      },
+      {
+        eventType: "intrusion_attempt",
+        severity: "critical",
+        sourceIp: "198.51.100.23",
+        targetIp: "192.168.1.5",
+        description: "Verdächtiger Einbruchsversuch in Firewall erkannt",
+        status: "resolved",
+        deviceId: 4,
+      },
+    ];
+
+    sampleSecurityEvents.forEach(event => {
+      const id = this.currentSecurityEventId++;
+      const fullEvent: SecurityEvent = {
+        ...event,
+        id,
+        timestamp: new Date(Date.now() - Math.random() * 86400000), // Random time within last 24h
+      };
+      this.securityEvents.set(id, fullEvent);
+    });
   }
 
   async getDevices(): Promise<Device[]> {
@@ -188,6 +303,85 @@ export class MemStorage implements IStorage {
     return Array.from(this.systemMetrics.values())
       .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
       .slice(0, limit);
+  }
+
+  // Security events operations (IDS)
+  async getSecurityEvents(limit: number = 50): Promise<SecurityEvent[]> {
+    return Array.from(this.securityEvents.values())
+      .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+      .slice(0, limit);
+  }
+
+  async getSecurityEventsByStatus(status: string, limit: number = 50): Promise<SecurityEvent[]> {
+    return Array.from(this.securityEvents.values())
+      .filter(event => event.status === status)
+      .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+      .slice(0, limit);
+  }
+
+  async createSecurityEvent(insertEvent: InsertSecurityEvent): Promise<SecurityEvent> {
+    const id = this.currentSecurityEventId++;
+    const event: SecurityEvent = {
+      ...insertEvent,
+      id,
+      timestamp: new Date(),
+    };
+    this.securityEvents.set(id, event);
+    return event;
+  }
+
+  async updateSecurityEvent(id: number, updates: Partial<InsertSecurityEvent>): Promise<SecurityEvent | undefined> {
+    const event = this.securityEvents.get(id);
+    if (!event) return undefined;
+
+    const updatedEvent: SecurityEvent = {
+      ...event,
+      ...updates,
+    };
+    this.securityEvents.set(id, updatedEvent);
+    return updatedEvent;
+  }
+
+  async deleteSecurityEvent(id: number): Promise<boolean> {
+    return this.securityEvents.delete(id);
+  }
+
+  // IDS rules operations
+  async getIdsRules(): Promise<IdsRule[]> {
+    return Array.from(this.idsRules.values());
+  }
+
+  async getIdsRule(id: number): Promise<IdsRule | undefined> {
+    return this.idsRules.get(id);
+  }
+
+  async createIdsRule(insertRule: InsertIdsRule): Promise<IdsRule> {
+    const id = this.currentIdsRuleId++;
+    const rule: IdsRule = {
+      ...insertRule,
+      id,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    this.idsRules.set(id, rule);
+    return rule;
+  }
+
+  async updateIdsRule(id: number, updates: Partial<InsertIdsRule>): Promise<IdsRule | undefined> {
+    const rule = this.idsRules.get(id);
+    if (!rule) return undefined;
+
+    const updatedRule: IdsRule = {
+      ...rule,
+      ...updates,
+      updatedAt: new Date(),
+    };
+    this.idsRules.set(id, updatedRule);
+    return updatedRule;
+  }
+
+  async deleteIdsRule(id: number): Promise<boolean> {
+    return this.idsRules.delete(id);
   }
 }
 

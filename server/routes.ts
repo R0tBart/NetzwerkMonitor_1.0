@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertDeviceSchema, insertBandwidthMetricSchema, insertSystemMetricSchema } from "@shared/schema";
+import { insertDeviceSchema, insertBandwidthMetricSchema, insertSystemMetricSchema, insertSecurityEventSchema, insertIdsRuleSchema } from "@shared/schema";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -182,6 +182,161 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ message: "Mock data generated successfully" });
     } catch (error) {
       res.status(500).json({ message: "Failed to generate mock data" });
+    }
+  });
+
+  // Security events routes (IDS)
+  app.get("/api/security-events", async (req, res) => {
+    try {
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
+      const status = req.query.status as string;
+      
+      let events;
+      if (status) {
+        events = await storage.getSecurityEventsByStatus(status, limit);
+      } else {
+        events = await storage.getSecurityEvents(limit);
+      }
+      
+      res.json(events);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch security events" });
+    }
+  });
+
+  app.post("/api/security-events", async (req, res) => {
+    try {
+      const eventData = insertSecurityEventSchema.parse(req.body);
+      const event = await storage.createSecurityEvent(eventData);
+      res.status(201).json(event);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid event data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create security event" });
+    }
+  });
+
+  app.put("/api/security-events/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid event ID" });
+      }
+      
+      const updateData = insertSecurityEventSchema.partial().parse(req.body);
+      const event = await storage.updateSecurityEvent(id, updateData);
+      
+      if (!event) {
+        return res.status(404).json({ message: "Security event not found" });
+      }
+      
+      res.json(event);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid event data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update security event" });
+    }
+  });
+
+  app.delete("/api/security-events/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid event ID" });
+      }
+      
+      const deleted = await storage.deleteSecurityEvent(id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Security event not found" });
+      }
+      
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete security event" });
+    }
+  });
+
+  // IDS rules routes
+  app.get("/api/ids-rules", async (req, res) => {
+    try {
+      const rules = await storage.getIdsRules();
+      res.json(rules);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch IDS rules" });
+    }
+  });
+
+  app.get("/api/ids-rules/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid rule ID" });
+      }
+      
+      const rule = await storage.getIdsRule(id);
+      if (!rule) {
+        return res.status(404).json({ message: "IDS rule not found" });
+      }
+      
+      res.json(rule);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch IDS rule" });
+    }
+  });
+
+  app.post("/api/ids-rules", async (req, res) => {
+    try {
+      const ruleData = insertIdsRuleSchema.parse(req.body);
+      const rule = await storage.createIdsRule(ruleData);
+      res.status(201).json(rule);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid rule data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create IDS rule" });
+    }
+  });
+
+  app.put("/api/ids-rules/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid rule ID" });
+      }
+      
+      const updateData = insertIdsRuleSchema.partial().parse(req.body);
+      const rule = await storage.updateIdsRule(id, updateData);
+      
+      if (!rule) {
+        return res.status(404).json({ message: "IDS rule not found" });
+      }
+      
+      res.json(rule);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid rule data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update IDS rule" });
+    }
+  });
+
+  app.delete("/api/ids-rules/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid rule ID" });
+      }
+      
+      const deleted = await storage.deleteIdsRule(id);
+      if (!deleted) {
+        return res.status(404).json({ message: "IDS rule not found" });
+      }
+      
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete IDS rule" });
     }
   });
 

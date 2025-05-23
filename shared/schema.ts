@@ -32,6 +32,29 @@ export const systemMetrics = pgTable("system_metrics", {
   uptime: real("uptime").notNull(), // percentage
 });
 
+export const securityEvents = pgTable("security_events", {
+  id: serial("id").primaryKey(),
+  timestamp: timestamp("timestamp").notNull().defaultNow(),
+  eventType: text("event_type").notNull(), // intrusion_attempt, malware_detected, unusual_traffic, port_scan, brute_force
+  severity: text("severity").notNull(), // low, medium, high, critical
+  sourceIp: text("source_ip").notNull(),
+  targetIp: text("target_ip"),
+  description: text("description").notNull(),
+  status: text("status").notNull().default("new"), // new, investigating, resolved, false_positive
+  deviceId: integer("device_id").references(() => devices.id),
+});
+
+export const idsRules = pgTable("ids_rules", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description").notNull(),
+  pattern: text("pattern").notNull(), // regex or signature pattern
+  severity: text("severity").notNull(), // low, medium, high, critical
+  enabled: boolean("enabled").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 export const insertDeviceSchema = createInsertSchema(devices).pick({
   name: true,
   type: true,
@@ -56,9 +79,31 @@ export const insertSystemMetricSchema = createInsertSchema(systemMetrics).pick({
   uptime: true,
 });
 
+export const insertSecurityEventSchema = createInsertSchema(securityEvents).pick({
+  eventType: true,
+  severity: true,
+  sourceIp: true,
+  targetIp: true,
+  description: true,
+  status: true,
+  deviceId: true,
+});
+
+export const insertIdsRuleSchema = createInsertSchema(idsRules).pick({
+  name: true,
+  description: true,
+  pattern: true,
+  severity: true,
+  enabled: true,
+});
+
 export type InsertDevice = z.infer<typeof insertDeviceSchema>;
 export type Device = typeof devices.$inferSelect;
 export type InsertBandwidthMetric = z.infer<typeof insertBandwidthMetricSchema>;
 export type BandwidthMetric = typeof bandwidthMetrics.$inferSelect;
 export type InsertSystemMetric = z.infer<typeof insertSystemMetricSchema>;
 export type SystemMetric = typeof systemMetrics.$inferSelect;
+export type InsertSecurityEvent = z.infer<typeof insertSecurityEventSchema>;
+export type SecurityEvent = typeof securityEvents.$inferSelect;
+export type InsertIdsRule = z.infer<typeof insertIdsRuleSchema>;
+export type IdsRule = typeof idsRules.$inferSelect;
