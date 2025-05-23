@@ -47,9 +47,9 @@ export default function Sidebar() {
             return (
               <li key={item.name}>
                 <Link href={item.href}>
-                  <a
+                  <div
                     className={cn(
-                      "flex items-center space-x-3 px-3 py-2 rounded-lg font-medium transition-colors",
+                      "flex items-center space-x-3 px-3 py-2 rounded-lg font-medium transition-colors cursor-pointer",
                       isActive
                         ? "bg-primary text-white"
                         : "text-slate-600 dark:text-sidebar-foreground hover:bg-slate-100 dark:hover:bg-sidebar-accent"
@@ -57,7 +57,7 @@ export default function Sidebar() {
                   >
                     <Icon className="h-5 w-5" />
                     <span>{item.name}</span>
-                  </a>
+                  </div>
                 </Link>
               </li>
             );

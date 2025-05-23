@@ -48,11 +48,11 @@ export default function Passwords() {
   const queryClient = useQueryClient();
 
   // Queries
-  const { data: vaults = [], isLoading: vaultsLoading } = useQuery({
+  const { data: vaults = [], isLoading: vaultsLoading } = useQuery<PasswordVault[]>({
     queryKey: ["/api/password-vaults"],
   });
 
-  const { data: entries = [], isLoading: entriesLoading } = useQuery({
+  const { data: entries = [], isLoading: entriesLoading } = useQuery<PasswordEntry[]>({
     queryKey: ["/api/password-entries", selectedVault],
     enabled: !!selectedVault,
   });
@@ -139,6 +139,21 @@ export default function Passwords() {
     setShowPassword(prev => ({ ...prev, [entryId]: !prev[entryId] }));
   };
 
+  const generatePassword = (length: number = 16) => {
+    const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+-=[]{}|;:,.<>?";
+    let password = "";
+    for (let i = 0; i < length; i++) {
+      password += charset.charAt(Math.floor(Math.random() * charset.length));
+    }
+    return password;
+  };
+
+  const handleGeneratePassword = () => {
+    const newPassword = generatePassword(16);
+    entryForm.setValue("encryptedPassword", newPassword);
+    toast({ title: "Passwort generiert", description: "Ein starkes Passwort wurde generiert." });
+  };
+
   const copyToClipboard = async (text: string, type: string) => {
     try {
       await navigator.clipboard.writeText(text);
@@ -169,7 +184,7 @@ export default function Passwords() {
   };
 
   // Set default vault when vaults load
-  if (vaults.length > 0 && !selectedVault) {
+  if (vaults && vaults.length > 0 && !selectedVault) {
     setSelectedVault(vaults[0].id);
   }
 

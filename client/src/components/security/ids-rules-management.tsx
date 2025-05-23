@@ -52,7 +52,7 @@ export default function IdsRulesManagement() {
   const queryClient = useQueryClient();
 
   // Query
-  const { data: rules = [], isLoading } = useQuery({
+  const { data: rules = [], isLoading } = useQuery<IdsRule[]>({
     queryKey: ["/api/ids-rules"],
   });
 
