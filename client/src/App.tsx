@@ -14,6 +14,7 @@ function Router() {
       <Route path="/" component={Dashboard} />
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/security" component={Security} />
+      <Route path="/passwords" component={Passwords} />
       <Route component={NotFound} />
     </Switch>
   );
