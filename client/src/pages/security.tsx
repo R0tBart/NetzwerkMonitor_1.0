@@ -87,8 +87,12 @@ export default function Security() {
   });
 
   const filteredEvents = securityEvents?.filter(event => {
-    if (statusFilter !== "all" && event.status !== statusFilter) return false;
-    if (severityFilter !== "all" && event.severity !== severityFilter) return false;
+    if (statusFilter !== "all" && event.status !== statusFilter) {
+      return false;
+    }
+    if (severityFilter !== "all" && event.severity !== severityFilter) {
+      return false;
+    }
     return true;
   }) || [];
 

@@ -55,7 +55,9 @@ export class DatabaseStorage implements IStorage {
   private initialized = false;
 
   private async initializeData() {
-    if (this.initialized) return;
+    if (this.initialized) {
+      return;
+    }
     
     // Check if we already have data
     const existingDevices = await db.select().from(devices).limit(1);

@@ -1,5 +1,3 @@
-// src/pages/alerts.tsx
-
 import { useState } from "react";
 import Sidebar from "@/components/layout/sidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
